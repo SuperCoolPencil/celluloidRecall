@@ -407,6 +407,9 @@ def render_card(path, data):
     st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
 
 def main():
+
+    st.set_page_config(initial_sidebar_state="expanded")
+
     settings = settings_mgr.load_settings()
     
     if 'pending_play' in st.session_state:
