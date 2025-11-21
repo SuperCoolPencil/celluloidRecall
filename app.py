@@ -38,7 +38,14 @@ MODERN_CSS = """
     }
     
     footer { visibility: hidden; height: 0; }
-    #MainMenu { visibility: visible; height: auto; } /* Make Streamlit's main menu visible */
+    #MainMenu { visibility: hidden; height: 0; } /* Hide Streamlit's main menu */
+    /* Hide the deploy button */
+    [data-testid="stBaseButton-header"] {
+        visibility: hidden;
+        height: 0;
+        width: 0;
+        overflow: hidden;
+    }
 
     /* Make the Streamlit header transparent */
     header {
