@@ -37,7 +37,15 @@ MODERN_CSS = """
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    header, #MainMenu, footer { visibility: hidden; height: 0; }
+    footer { visibility: hidden; height: 0; }
+    #MainMenu { visibility: visible; height: auto; } /* Make Streamlit's main menu visible */
+
+    /* Make the Streamlit header transparent */
+    header {
+        background: transparent !important;
+        color: white !important; /* Ensure text/icons in header are visible */
+    }
+    
     .block-container { padding-top: 3rem !important; padding-bottom: 4rem !important; max-width: 900px !important; }
     
     /* === HERO HEADER === */
@@ -238,12 +246,6 @@ MODERN_CSS = """
         height: auto !important; /* Allow height to adjust based on content and padding */
     }
     
-    /* === SIDEBAR === */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, rgba(12, 12, 14, 0.95) 0%, rgba(10, 10, 15, 0.98) 100%) !important;
-        border-right: 1px solid rgba(63, 63, 70, 0.3) !important;
-    }
-
     /* Remove gap between columns for the card effect */
     div[data-testid="stHorizontalBlock"] {
         align-items: center;
@@ -252,7 +254,12 @@ MODERN_CSS = """
 </style>
 """
 
-st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout="centered")
+st.set_page_config(
+    page_title=PAGE_TITLE, 
+    page_icon=PAGE_ICON, 
+    layout="centered", 
+    initial_sidebar_state="expanded" # This forces the sidebar open
+)
 st.markdown(MODERN_CSS, unsafe_allow_html=True)
 
 def open_file_dialog(select_folder=False):
@@ -436,8 +443,6 @@ def render_card(path, data):
     st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
 
 def main():
-
-    st.set_page_config(initial_sidebar_state="expanded")
 
     settings = settings_mgr.load_settings()
     
