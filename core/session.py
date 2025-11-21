@@ -1,8 +1,11 @@
 import os
 import json
 import datetime
+from core.settings import load_config_paths
 
-CACHE_PATH = os.path.expanduser("~/.cache/cue_media_sessions.json")
+_, CONFIG_SESSIONS_PATH = load_config_paths()
+
+CACHE_PATH = CONFIG_SESSIONS_PATH
 
 def load_sessions():
     if os.path.exists(CACHE_PATH):

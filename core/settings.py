@@ -1,8 +1,26 @@
 import os
 import json
 import platform
+import configparser
 
-SETTINGS_PATH = os.path.expanduser("~/.config/cue_settings.json")
+def load_config_paths():
+    config = configparser.ConfigParser()
+    config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config.ini')
+    
+    # Try to read config.ini relative to the script location
+    if os.path.exists(config_file_path):
+        config.read(config_file_path)
+    else:
+        # Fallback to current working directory or default paths
+        config.read('config.ini')
+
+    settings_path = config.get('Paths', 'settings_path', fallback=os.path.expanduser("~/.config/cue_settings.json"))
+    sessions_path = config.get('Paths', 'sessions_path', fallback=os.path.expanduser("~/.cache/cue_media_sessions.json"))
+    return settings_path, sessions_path
+
+CONFIG_SETTINGS_PATH, _ = load_config_paths()
+
+SETTINGS_PATH = CONFIG_SETTINGS_PATH
 IS_WINDOWS = platform.system() == "Windows"
 IS_MACOS = platform.system() == "Darwin"
 
