@@ -423,7 +423,7 @@ def main():
 
     render_sidebar(settings)
     st.markdown('<div class="main-header">Cue.</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="sub-header">Playback History • {len(session_mgr.load_sessions())} items</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sub-header">Resume where you left off • {len(session_mgr.load_sessions())} items</div>', unsafe_allow_html=True)
 
     sessions = session_mgr.load_sessions()
     query = st.text_input("Search", placeholder="Filter your library...", label_visibility="collapsed")
