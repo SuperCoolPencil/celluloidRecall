@@ -1,2 +1,3 @@
 /.venv
 mpvRecall.desktop
+__pycache__/*
