@@ -18,3 +18,20 @@ def find_free_port():
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+def get_folder_stats(folder_path, current_file):
+    """Returns (current_index, total_files) or None"""
+    if not os.path.isdir(folder_path): return None
+    files = get_media_files(folder_path)
+    if current_file in files:
+        return (files.index(current_file) + 1, len(files))
+    return None
+
+def format_remaining(seconds, folder=False):
+    """Formats seconds into '16m left' or '1h 4m left'"""
+    if seconds <= 0: return "Completed"
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    if h > 0:
+        return f"{h}h {m}m left in episode" if folder else f"{h}h {m}m left"
+    return f"{m}m left in episode" if folder else f"{m}m left"
