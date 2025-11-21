@@ -2,7 +2,7 @@
 
 **Cue** is a modern, cross-platform media launcher that remembers exactly where you left off. It acts as a smart dashboard for your local media, tracking playback progress for both individual files and folder-based playlists.
 
-![Cue Screenshot](https://via.placeholder.com/800x400?text=Cue+Dashboard+UI)
+![Cue Screenshot](demo.png)
 
 ## ✨ Features
 
