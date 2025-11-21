@@ -240,30 +240,44 @@ def launch_media(path, settings, start=0, idx=None, resume_f=None):
     with st.spinner(f"Opening {os.path.basename(path)}..."):
         res = play_media(settings, path, start, idx, resume_f)
         
-        if res and res.get('position', 0) > 5:
+        if res:
             target_file = resume_f if resume_f else path
-            base_name = os.path.basename(target_file)
+            
+            # 1. Force basename to prevent directory confusion
+            filename_only = os.path.basename(target_file)
             
             try:
-                info = guessit(base_name)
+                # 2. Parse ONLY the filename
+                info = guessit(filename_only)
             except Exception as e:
                 print(f"Guessit error: {e}")
                 info = {}
+
+            # 3. Robust Title Construction
+            # Start with the filename without extension as a fallback
+            clean_title = os.path.splitext(filename_only)[0]
             
-            if 'year' in info:
-                clean = f"{info.get('title', base_name)} ({info['year']})"
-            elif 'season' in info and 'episode' in info:
-                clean = f"{info.get('title', base_name)} S{info['season']:02d}E{info['episode']:02d}"
-            else:
-                clean = info.get('title', os.path.splitext(base_name)[0])
+            # Extract title and ensure it's a string
+            if info.get('title'):
+                clean_title = str(info['title'])
+                
+                if 'year' in info:
+                    clean_title += f" ({info['year']})"
+                elif 'season' in info and 'episode' in info:
+                    clean_title += f" S{info['season']:02d}E{info['episode']:02d}"
+
+            # 4. Update the result dictionary
+            res['clean_title'] = clean_title
             
-            res['clean_title'] = clean
-            
+            # 5. Handle Series Metadata
             if 'season' in info:
                 res['season_number'] = info['season']
 
+            # 6. Save to Session 
+            # We pass the logic even if position is 0, so the title gets fixed
             session_mgr.update_session(path, res, os.path.isdir(path))
             return True
+        
     return False
 
 # === DRIVER DEFAULTS ===

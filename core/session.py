@@ -19,13 +19,25 @@ def save_session_data(sessions):
 
 def update_session(path, result_data, is_folder=False):
     sessions = load_sessions()
-    sessions[path] = {
+    
+    # 1. Create the basic session entry
+    entry = {
         "is_folder": is_folder,
-        "last_played_file": result_data['path'],
-        "last_played_position": result_data['position'],
-        "total_duration": result_data['duration'],
+        # Use .get() for safety in case keys are missing
+        "last_played_file": result_data.get('path', path),
+        "last_played_position": result_data.get('position', 0),
+        "total_duration": result_data.get('duration', 0),
         "last_played_timestamp": datetime.datetime.now().isoformat()
     }
+
+    # 2. === THE FIX: Save the clean title and season info ===
+    if 'clean_title' in result_data:
+        entry['clean_title'] = result_data['clean_title']
+    
+    if 'season_number' in result_data:
+        entry['season_number'] = result_data['season_number']
+
+    sessions[path] = entry
     save_session_data(sessions)
 
 def delete_session(path):
