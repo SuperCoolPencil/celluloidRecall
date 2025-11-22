@@ -4,6 +4,7 @@ import json
 import time
 import uuid
 import os
+import tempfile
 
 def send_ipc_command(sock_path, command):
     if not os.path.exists(sock_path): return None
@@ -40,8 +41,38 @@ def play(executable, path, start_pos=None, playlist_idx=None, resume_file=None):
     socket_path = f"/tmp/cue_ipc_{uuid.uuid4().hex}.sock"
     cmd = [executable]
     cmd.append(f"--mpv-input-ipc-server={socket_path}")
-    if start_pos: cmd.append(f"--mpv-start={start_pos}")
-    if playlist_idx is not None: cmd.append(f"--mpv-playlist-start={playlist_idx}")
+    
+    # --- FIX: Lua Script Injection ---
+    # Instead of using --mpv-start (which applies to every episode),
+    # we create a temporary Lua script that seeks ONCE and then disables itself.
+    temp_script_path = None
+    
+    if start_pos and start_pos > 0:
+        lua_content = f'''
+local target_time = {start_pos}
+local sought = false
+
+function on_file_loaded()
+    if not sought then
+        mp.commandv("seek", target_time, "absolute")
+        sought = true -- Ensure we never seek again for subsequent files
+    end
+end
+
+mp.register_event("file-loaded", on_file_loaded)
+'''
+        # Create a temp file for the script
+        fd, temp_script_path = tempfile.mkstemp(suffix=".lua")
+        os.close(fd) # Close file descriptor so we can write to it cleanly
+        with open(temp_script_path, 'w') as f:
+            f.write(lua_content)
+        
+        cmd.append(f"--mpv-script={temp_script_path}")
+
+    # Handle Playlist Start Index (Starting at Ep 7 instead of Ep 1)
+    if playlist_idx is not None: 
+        cmd.append(f"--mpv-playlist-start={playlist_idx}")
+    
     cmd.append(path)
 
     try:
@@ -59,7 +90,9 @@ def play(executable, path, start_pos=None, playlist_idx=None, resume_file=None):
         if fpath: last_path = fpath
         time.sleep(1)
 
+    # Cleanup: Remove the socket and the temp script
     if os.path.exists(socket_path): os.remove(socket_path)
+    if temp_script_path and os.path.exists(temp_script_path): os.remove(temp_script_path)
 
     final_path = last_path if last_path else path
     if os.path.isdir(path) and last_path:

@@ -364,6 +364,18 @@ def render_sidebar(settings):
                 st.rerun()
         if st.button("🛑 Quit", type="secondary", use_container_width=True): os._exit(0)
 
+def save_title_and_exit_edit_mode(path, k_id):
+    # Grab updated title
+    new_title_key = f"new_title_{k_id}"
+    new_title = st.session_state.get(new_title_key)
+
+    # Save to backend / session
+    session_mgr.update_session_metadata(path, 'clean_title', new_title)
+    st.session_state.sessions[path]['clean_title'] = new_title
+
+    # Exit edit mode
+    st.session_state[f"edit_state_{k_id}"] = False
+
 def render_card(path, data):
     raw_file = data.get('last_played_file', 'Unknown')
     display_name = data.get('clean_title', os.path.basename(raw_file))
@@ -396,7 +408,7 @@ def render_card(path, data):
         badges.append('<span class="badge b-success">✓ COMPLETED</span>')
 
     # Generate unique key suffix for this item
-    k_id = hash(path)
+    k_id = data.get('id', hash(path)) # Use UUID if available
 
     # === REFACTORED CARD LAYOUT ===
     # Instead of one HTML block, we use columns.
@@ -429,32 +441,75 @@ def render_card(path, data):
                 st.session_state['resume_data'] = (path, is_done, pos, is_folder, data['last_played_file'])
                 st.rerun()
 
-            # 2. DELETE BUTTON (With Confirmation)
-            # Check if this specific path is in confirmation mode
-            if st.session_state.get('confirm_del') == path:
-                # Show Confirm / Cancel options
-                c1, c2 = st.columns(2)
-                if c1.button("✓", key=f"y_{k_id}", use_container_width=True, help="Confirm Delete"):
-                    session_mgr.delete_session(path)
-                    del st.session_state['confirm_del']
-                    st.rerun()
-                if c2.button("✕", key=f"n_{k_id}", use_container_width=True, help="Cancel"):
-                    del st.session_state['confirm_del']
-                    st.rerun()
-            else:
-                # Show normal delete button
-                if st.button("Delete", key=f"del_{k_id}", use_container_width=True):
-                    st.session_state['confirm_del'] = path
-                    st.rerun()
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # 2. EDIT TITLE BUTTON + INPUT
+                edit_button_key = f"edit_btn_{k_id}"
+                edit_state_key = f"edit_state_{k_id}"
+
+                # Ensure edit state exists
+                if edit_state_key not in st.session_state:
+                    st.session_state[edit_state_key] = False
+
+
+                # -------------------------
+                #       EDIT MODE
+                # -------------------------
+                if st.session_state[edit_state_key]:
+
+                    new_title = st.text_input(
+                        "New Title",
+                        value=display_name,
+                        key=f"new_title_{k_id}",
+                        label_visibility="collapsed",
+                        on_change=lambda: save_title_and_exit_edit_mode(path, k_id)
+                    )
+
+                else:
+                    # -------------------------
+                    #    EDIT BUTTON MODE
+                    # -------------------------
+                    if st.button("Edit", key=edit_button_key, use_container_width=True):
+                        st.session_state[edit_state_key] = True
+                        st.rerun()
+
+            with col2:
+                # 3. DELETE BUTTON (With Confirmation)
+                # Check if this specific path is in confirmation mode
+                if st.session_state.get('confirm_del') == path:
+                    # Show Confirm / Cancel options
+                    c1, c2 = st.columns(2)
+                    if c1.button("✓", key=f"y_{k_id}", use_container_width=True, help="Confirm Delete"):
+                        session_mgr.delete_session(path)
+                        del st.session_state.sessions[path] # Update state
+                        del st.session_state['confirm_del']
+                        st.rerun()
+                    if c2.button("✕", key=f"n_{k_id}", use_container_width=True, help="Cancel"):
+                        del st.session_state['confirm_del']
+                        st.rerun()
+                else:
+                    # Show normal delete button
+                    if st.button("Delete", key=f"del_{k_id}", use_container_width=True):
+                        st.session_state['confirm_del'] = path
+                        st.rerun()
 
     st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
 
 def main():
-
     settings = settings_mgr.load_settings()
-    
+
+    # Centralized state management for sessions
+    if 'sessions' not in st.session_state:
+        st.session_state.sessions = session_mgr.load_sessions()
+
+    def reload_sessions_and_rerun():
+        st.session_state.sessions = session_mgr.load_sessions()
+        st.rerun()
+
     if 'pending_play' in st.session_state:
-        if launch_media(st.session_state.pop('pending_play'), settings): st.rerun()
+        if launch_media(st.session_state.pop('pending_play'), settings):
+            reload_sessions_and_rerun()
         
     if 'resume_data' in st.session_state:
         path, done, pos, is_dir, last_f = st.session_state.pop('resume_data')
@@ -463,13 +518,14 @@ def main():
             if is_dir:
                 files = get_media_files(path)
                 if last_f in files: idx, res_f = files.index(last_f), last_f
-            if launch_media(path, settings, 0 if done else pos, idx, res_f): st.rerun()
+            if launch_media(path, settings, 0 if done else pos, idx, res_f):
+                reload_sessions_and_rerun()
 
     render_sidebar(settings)
     st.markdown('<div class="main-header">Cue.</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="sub-header">Resume where you left off • {len(session_mgr.load_sessions())} items</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sub-header">Resume where you left off • {len(st.session_state.sessions)} items</div>', unsafe_allow_html=True)
 
-    sessions = session_mgr.load_sessions()
+    sessions = st.session_state.sessions
     query = st.text_input("Search", placeholder="Filter your library...", label_visibility="collapsed")
     
     items = sorted(

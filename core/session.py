@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import uuid
 from core.settings import load_config_paths
 
 _, CONFIG_SESSIONS_PATH = load_config_paths()
@@ -23,25 +24,33 @@ def save_session_data(sessions):
 def update_session(path, result_data, is_folder=False):
     sessions = load_sessions()
     
-    # 1. Create the basic session entry
-    entry = {
-        "is_folder": is_folder,
-        # Use .get() for safety in case keys are missing
-        "last_played_file": result_data.get('path', path),
-        "last_played_position": result_data.get('position', 0),
-        "total_duration": result_data.get('duration', 0),
-        "last_played_timestamp": datetime.datetime.now().isoformat()
-    }
+    # Get existing session or create a new one
+    session = sessions.get(path, {})
 
-    # 2. === THE FIX: Save the clean title and season info ===
-    if 'clean_title' in result_data:
-        entry['clean_title'] = result_data['clean_title']
-    
-    if 'season_number' in result_data:
-        entry['season_number'] = result_data['season_number']
+    # If it's a new session, assign a UUID and other initial details
+    if 'id' not in session:
+        session['id'] = str(uuid.uuid4())
+        session['is_folder'] = is_folder
+        if 'season_number' in result_data:
+            session['season_number'] = result_data['season_number']
+        # Set clean_title from guessit only for new sessions
+        if 'clean_title' in result_data:
+            session['clean_title'] = result_data['clean_title']
 
-    sessions[path] = entry
+    # Update details that change on every run
+    session["last_played_file"] = result_data.get('path', path)
+    session["last_played_position"] = result_data.get('position', 0)
+    session["total_duration"] = result_data.get('duration', 0)
+    session["last_played_timestamp"] = datetime.datetime.now().isoformat()
+
+    sessions[path] = session
     save_session_data(sessions)
+
+def update_session_metadata(path, key, value):
+    sessions = load_sessions()
+    if path in sessions:
+        sessions[path][key] = value
+        save_session_data(sessions)
 
 def delete_session(path):
     sessions = load_sessions()
