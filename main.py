@@ -347,12 +347,14 @@ def save_title_and_exit_edit_mode(path, k_id, library_service):
     new_title_key = f"new_title_{k_id}"
     new_title = st.session_state.get(new_title_key)
 
-    # Save to backend / session
-    library_service.update_session_metadata(path, clean_title=new_title)
-    st.session_state.sessions[path].metadata.clean_title = new_title
+    # Grab updated season number
+    new_season_key = f"new_season_{k_id}"
+    new_season = st.session_state.get(new_season_key)
 
-    # Exit edit mode
-    st.session_state[f"edit_state_{k_id}"] = False
+    # Save to backend / session
+    library_service.update_session_metadata(path, clean_title=new_title, season_number=new_season)
+    st.session_state.sessions[path].metadata.clean_title = new_title
+    st.session_state.sessions[path].metadata.season_number = new_season
 
 def render_card(path, session, library_service):
     display_name = session.metadata.clean_title
@@ -364,11 +366,13 @@ def render_card(path, session, library_service):
     badges = []
     badges.append(f'<span class="badge b-folder">{"SERIES" if is_folder else "MOVIE"}</span>')
     
-    season_num = session.metadata.season_number
+    current_season_num = session.metadata.season_number
+    # Handle season_num being a list or a single int
+    if isinstance(current_season_num, list):
+        current_season_num = current_season_num[0] if current_season_num else None
         
-    if season_num:
-        if isinstance(season_num, list): season_num = season_num[0]
-        badges.append(f'<span class="badge b-season">SEASON {season_num:02d}</span>')
+    if current_season_num:
+        badges.append(f'<span class="badge b-season">SEASON {current_season_num:02d}</span>')
 
     if is_folder:
         series_files = library_service.get_series_files(session)
@@ -414,25 +418,27 @@ def render_card(path, session, library_service):
             
             with col1:
                 # 2. EDIT TITLE BUTTON + INPUT
-                edit_button_key = f"edit_btn_{k_id}"
-                edit_state_key = f"edit_state_{k_id}"
-
-                # Ensure edit state exists
-                if edit_state_key not in st.session_state:
-                    st.session_state[edit_state_key] = False
-
                 # -------------------------
                 #    EDIT BUTTON (POPOVER)
                 # -------------------------
                 with st.popover("Edit", use_container_width=True):
+                    st.markdown("##### Edit Metadata")
                     new_title = st.text_input(
-                        "New Title",
+                        "Title",
                         value=display_name,
                         key=f"new_title_{k_id}",
                         label_visibility="collapsed",
                         placeholder="Enter new title"
                     )
-                    if st.button("Save Title", key=f"save_title_{k_id}", use_container_width=True):
+                    new_season = st.number_input(
+                        "Season Number",
+                        min_value=1,
+                        value=current_season_num if current_season_num is not None else 1,
+                        key=f"new_season_{k_id}",
+                        label_visibility="collapsed",
+                        placeholder="Enter season number"
+                    )
+                    if st.button("Save Metadata", key=f"save_title_{k_id}", use_container_width=True):
                         save_title_and_exit_edit_mode(path, k_id, library_service)
                         st.rerun()
 
