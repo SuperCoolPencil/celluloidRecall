@@ -16,8 +16,9 @@ from core.services import LibraryService
 from core.repository import JsonRepository
 from core.drivers.mpv_driver import MpvDriver
 from core.drivers.vlc_driver import VlcDriver
-from core. drivers.ipc_driver import PlayerDriver
+from core.drivers.ipc_driver import PlayerDriver
 from core.settings import load_settings, save_settings
+from core.utils import format_seconds_to_human_readable
 
 PAGE_TITLE = "Cue"
 PAGE_ICON = "⏯️"
@@ -390,8 +391,8 @@ def render_card(path, session, library_service):
                 <div class="card-title">{display_name}</div>
                 <div class="badge-container">{"".join(badges)}</div>
                 <div class="stats-row">
-                    <span>{pos:.0f}s / {dur:.0f}s</span>
-                    <span class="time-remaining">{'Finished' if is_done else f"{(dur - pos) / 60:.0f}m left"}</span>
+                    <span>{format_seconds_to_human_readable(pos)} / {format_seconds_to_human_readable(dur)}</span>
+                    <span class="time-remaining">{'Finished' if is_done else f"{format_seconds_to_human_readable(dur - pos)} left in episode"}</span>
                 </div>
             </div>
             """
