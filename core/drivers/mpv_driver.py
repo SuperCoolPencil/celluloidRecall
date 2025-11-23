@@ -12,10 +12,10 @@ from core.interfaces import IPlayerDriver
 from core.domain import PlaybackState
 
 class MpvDriver(IPlayerDriver):
-    def __init__(self, executable_path: str = "mpv"):
-        self.executable_path = executable_path
+    def __init__(self, player_executable_path: str = "mpv"):
+        self.player_executable_path = player_executable_path
         self.request_id_counter = 0
-    
+
     def launch(self, playlist: List[str], start_index: int = 0, start_time: float = 0.0) -> PlaybackState:
         if not playlist:
             return PlaybackState()
@@ -26,124 +26,88 @@ class MpvDriver(IPlayerDriver):
         if not is_windows and os.path.exists(socket_path):
             os.remove(socket_path)
 
-        # --- COMMAND SETUP ---
-        # Note: We removed --playlist-start from here because we will force it via IPC
-        mpv_engine_flags = [
+        command = [
+            "mpv",
+            "--no-terminal",
             f"--input-ipc-server={socket_path}",
-            "--force-media-title=dummy",
+            f"--playlist-start={start_index}",
             "--idle=no",
-            "--pause" # Crucial: Start paused so we can swap episodes without user seeing Ep1
+            "--pause",  # 1. Start paused
         ]
+        command.extend(playlist)
 
-        final_command = []
-        if "celluloid" in self.executable_path.lower():
-            mpv_opts_string = " ".join(mpv_engine_flags)
-            final_command = [
-                self.executable_path,
-                "--new-window", 
-                f"--mpv-options={mpv_opts_string}"
-            ]
-            final_command.extend(playlist)
-        else:
-            final_command = [self.executable_path, "--no-terminal"] + mpv_engine_flags + playlist
-
-        print(f"Launching Player...")
-        process = subprocess.Popen(final_command)
+        print(f"Launching MPV: {' '.join(command)}")
         
-        # State tracking
+        process = subprocess.Popen(command)
+        
         final_position = start_time
         total_duration = 0.0
         is_finished = False
-        last_played_file = playlist[0] # Default to first, update later
+        last_played_file = playlist[start_index] if start_index < len(playlist) else playlist[0]
 
-        # --- STARTUP STATE MACHINE ---
-        # We need to perform specific actions in order:
-        # 0. Connect
-        # 1. Switch to correct Episode Index (if needed)
-        # 2. Wait for that Episode to load (Duration > 0)
-        # 3. Seek to timestamp
-        # 4. Unpause
-        startup_phase = "SWITCH_INDEX" # Start, Seek, Play
-        
+        # Flag to ensure we only seek specifically for the FIRST file
+        initial_seek_done = False 
+
         try:
-            ipc = self._connect_ipc(socket_path, is_windows, timeout=10)
+            ipc = self._connect_ipc(socket_path, is_windows, timeout=5)
             if not ipc:
-                raise ConnectionError("Failed to connect to IPC socket.")
+                raise ConnectionError("Failed to connect to MPV IPC socket.")
             
             while process.poll() is None:
                 try:
-                    # --- CONSTANTLY MONITOR PATH & TIME ---
-                    # We need these for the return state regardless of startup phase
-                    curr_path = self._send_ipc_command(ipc, ["get_property", "path"])
-                    curr_pos = self._send_ipc_command(ipc, ["get_property", "time-pos"])
+                    # --- 1. CHECK DURATION FIRST (Required to know if file is loaded) ---
+                    # We need to know the duration before we can safely seek.
+                    current_dur = None
+                    dur_resp = self._send_ipc_command(ipc, ["get_property", "duration"])
                     
-                    if curr_path:
-                        # Update last played file if it changes (and looks valid)
-                        # Use 'in' check because MPV paths might be absolute vs relative
-                        matched_file = next((f for f in playlist if f in curr_path or curr_path in f), None)
-                        if matched_file:
-                            last_played_file = matched_file
-
-                    if curr_pos is not None:
+                    if dur_resp is not None:
                         try:
-                            final_position = float(curr_pos)
-                        except: pass
+                            current_dur = float(dur_resp)
+                            # Only update total_duration if we haven't set it for this file yet
+                            if total_duration == 0.0:
+                                total_duration = current_dur
+                        except (ValueError, TypeError):
+                            pass
 
-                    # --- STARTUP LOGIC ---
-                    if startup_phase != "DONE":
+                    # --- 2. HANDLE INITIAL SEEK & UNPAUSE ---
+                    # We only do this ONCE, and only after we confirmed the file is loaded (current_dur > 0)
+                    if not initial_seek_done and current_dur is not None and current_dur > 0:
+                        if start_time > 0:
+                            print(f"File loaded. Seeking to {start_time}...")
+                            self._send_ipc_command(ipc, ["seek", str(start_time), "absolute"])
                         
-                        # STEP 1: Ensure we are on the correct Playlist Index
-                        if startup_phase == "SWITCH_INDEX":
-                            # Get current index (0-based)
-                            curr_idx_resp = self._send_ipc_command(ipc, ["get_property", "playlist-pos"])
-                            if curr_idx_resp is not None:
-                                current_idx = int(curr_idx_resp)
-                                if current_idx != start_index:
-                                    print(f"Wrong Episode (Index {current_idx}). Switching to Index {start_index}...")
-                                    self._send_ipc_command(ipc, ["set_property", "playlist-pos", start_index])
-                                    time.sleep(0.5) # Give it a moment to switch
-                                else:
-                                    # We are on the right index, move to loading check
-                                    startup_phase = "WAIT_FOR_LOAD"
+                        # Unpause now that we are ready
+                        self._send_ipc_command(ipc, ["set_property", "pause", False])
+                        initial_seek_done = True
 
-                        # STEP 2: Wait for Duration (Confirmation file is loaded)
-                        elif startup_phase == "WAIT_FOR_LOAD":
-                            dur_resp = self._send_ipc_command(ipc, ["get_property", "duration"])
-                            if dur_resp is not None:
-                                try:
-                                    d = float(dur_resp)
-                                    if d > 0:
-                                        total_duration = d
-                                        startup_phase = "SEEK"
-                                except: pass
-                        
-                        # STEP 3: Seek and Unpause
-                        elif startup_phase == "SEEK":
-                            if start_time > 0:
-                                print(f"Seeking to {start_time}s...")
-                                self._send_ipc_command(ipc, ["seek", str(start_time), "absolute"])
-                            
-                            print("Resuming playback.")
-                            self._send_ipc_command(ipc, ["set_property", "pause", False])
-                            startup_phase = "DONE"
-
-                    # --- NORMAL PLAYBACK MONITORING ---
-                    else:
-                        # Just keep updating duration in case it changes (streaming) or new file
-                        dur_resp = self._send_ipc_command(ipc, ["get_property", "duration"])
-                        if dur_resp:
-                            try: total_duration = float(dur_resp)
-                            except: pass
+                    # --- 3. DETECT NEXT EPISODE ---
+                    current_path = self._send_ipc_command(ipc, ["get_property", "path"])
                     
-                    time.sleep(0.5)
+                    if current_path and current_path != last_played_file:
+                        print(f"Next episode detected: {current_path}")
+                        last_played_file = current_path
+                        total_duration = 0.0 # Reset duration
+                        final_position = 0.0 
+                        # Note: We do NOT reset initial_seek_done. 
+                        # This ensures the 2nd file starts naturally at 00:00.
+
+                    # --- 4. GET POSITION ---
+                    pos = self._send_ipc_command(ipc, ["get_property", "time-pos"])
+                    if pos is not None:
+                        try:
+                            final_position = float(pos)
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    time.sleep(1)
                     
                 except (BrokenPipeError, ConnectionResetError):
                     break
             
-            if ipc: ipc.close()
+            if ipc:
+                ipc.close()
 
-            # Completion check
-            if total_duration > 0 and (total_duration - final_position) < 10.0:
+            if total_duration > 0 and (total_duration - final_position) < 5.0:
                 is_finished = True
 
         except Exception as e:
@@ -151,6 +115,7 @@ class MpvDriver(IPlayerDriver):
         finally:
             if process.poll() is None:
                 process.terminate()
+            
             if not is_windows and os.path.exists(socket_path):
                 os.remove(socket_path)
 
