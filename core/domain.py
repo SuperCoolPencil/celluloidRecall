@@ -1,0 +1,27 @@
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+
+@dataclass
+class PlaybackState:
+    """Represents the dynamic playback data for a media file."""
+    last_played_file: str = ""
+    last_played_index: int = 0
+    position: float = 0.0  # Current playback position in seconds
+    duration: float = 0.0  # Total duration of the media in seconds
+    is_finished: bool = False
+    timestamp: datetime = field(default_factory=datetime.now)
+
+@dataclass
+class MediaMetadata:
+    """Represents the static metadata for a media file."""
+    clean_title: str
+    season_number: Optional[int] = None
+    is_user_locked_title: bool = False # If true, the title should not be overwritten by auto-guessing
+
+@dataclass
+class Session:
+    """Aggregates playback state and media metadata for a specific media item."""
+    filepath: str
+    metadata: MediaMetadata
+    playback: PlaybackState = field(default_factory=PlaybackState)
