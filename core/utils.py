@@ -10,7 +10,7 @@ def get_media_files(path: str) -> List[str]:
     if os.path.isdir(path):
         for root, _, files in os.walk(path):
             for file in files:
-                if file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov')):
+                if file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.webm')):
                     media_files.append(os.path.join(root, file))
     return sorted(media_files)
 
