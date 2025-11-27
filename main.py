@@ -34,153 +34,19 @@ DRIVER_DEFAULTS = {
     "vlc_rc": "vlc"
 }
 
-# === CSS STYLING ===
-MODERN_CSS = """
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
-    
-    /* === GLOBAL RESET === */
-    .stApp {
-        background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1f 50%, #0a0a0f 100%);
-        background-attachment: fixed;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    footer, #MainMenu, [data-testid="stBaseButton-header"] { visibility: hidden; height: 0; width: 0; overflow: hidden; }
-    
-    header { background: transparent !important; color: white !important; }
-    
-    .block-container { padding-top: 3rem !important; padding-bottom: 4rem !important; max-width: 900px !important; }
-    
-    /* === HERO HEADER === */
-    .main-header {
-        font-size: clamp(2.5rem, 8vw, 4.5rem);
-        font-weight: 900;
-        letter-spacing: -0.05em;
-        background: linear-gradient(135deg, #ffffff 0%, #a78bfa 50%, #ec4899 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-        line-height: 1;
-        animation: shimmer 8s ease-in-out infinite;
-        background-size: 200% 200%;
-    }
-    
-    @keyframes shimmer {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-    }
-    
-    .sub-header {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #71717a;
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid rgba(63, 63, 70, 0.3);
-        letter-spacing: 0.05em;
-    }
-    
-    /* === CARD DESIGN === */
-    .cue-card {
-        background: linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(25, 20, 45, 0.6) 100%);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(139, 92, 246, 0.2);
-        border-radius: 16px;
-        padding: 18px 20px;
-        margin-bottom: 0px;
-        box-shadow: 0 8px 32px -8px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-        height: 100%;
-    }
-
-    .cue-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: -100%; width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-        transition: none;
-    }
-
-    .cue-card:hover {
-        border-color: rgba(167, 139, 250, 0.6);
-        box-shadow: 0 12px 40px -12px rgba(139, 92, 246, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-        transform: translateY(-2px) scale(1.01);
-    }
-
-    .cue-card:hover::before { animation: shimmer-hover 1.5s infinite; }
-
-    @keyframes shimmer-hover {
-        0% { left: -100%; } 50% { left: 100%; } 100% { left: -100%; }
-    }
-    
-    .card-title {
-        font-size: 1.1rem; font-weight: 700; color: #fafafa; line-height: 1.3;
-        margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
-    }
-    
-    /* === BADGES === */
-    .badge-container { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
-    
-    .badge {
-        font-size: 0.6rem; padding: 4px 10px; border-radius: 6px; font-weight: 700;
-        letter-spacing: 0.08em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
-        white-space: nowrap; box-shadow: 0 2px 6px -2px currentColor;
-    }
-    
-    .b-folder { background: linear-gradient(135deg, #27272a, #18181b); color: #a1a1aa; border: 1px solid #3f3f46; }
-    .b-accent { background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(59, 130, 246, 0.15)); color: #60a5fa; border: 1px solid rgba(56, 189, 248, 0.3); }
-    .b-season { background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.15)); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); }
-    .b-success { background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(16, 185, 129, 0.15)); color: #6ee7b7; border: 1px solid rgba(52, 211, 153, 0.3); }
-    
-    .stats-row {
-        display: flex; justify-content: space-between; align-items: center;
-        font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #a1a1aa;
-        padding-top: 10px; border-top: 1px solid rgba(63, 63, 70, 0.3);
-    }
-    
-    .time-remaining { color: #fbbf24; font-weight: 700; text-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
-    
-    /* === UI COMPONENTS === */
-    div.stButton > button, [data-testid="stPopoverButton"] {
-        width: 100%; border-radius: 10px !important; font-size: 0.85rem !important;
-        font-weight: 600 !important; border: 1px solid rgba(139, 92, 246, 0.3) !important;
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(109, 40, 217, 0.1)) !important;
-        color: #e4e4e7 !important; transition: all 0.2s ease !important; margin-top: 2px;
-    }
-
-    div.stButton > button:hover, [data-testid="stPopoverButton"]:hover {
-        border-color: rgba(167, 139, 250, 0.6) !important;
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(109, 40, 217, 0.2)) !important;
-        transform: translateY(-1px); color: white !important;
-        box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.4) !important;
-    }
-    
-    div[data-baseweb="input"] > div { margin-bottom: 0 !important; }
-
-    .stTextInput input {
-        background: rgba(24, 24, 27, 0.6) !important; backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(63, 63, 70, 0.5) !important; border-radius: 12px !important;
-        color: #fafafa !important; padding: 0.75rem 1rem !important; font-size: 0.9rem !important;
-        line-height: 1.5 !important; vertical-align: middle !important; height: auto !important;
-    }
-    
-    div[data-testid="stHorizontalBlock"] { align-items: center; background: transparent; }
-</style>
-"""
-
 # === INITIALIZATION ===
+def load_css(file_name=os.path.join(os.path.abspath(os.path.dirname(__file__)), "styles.css")):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
 st.set_page_config(
     page_title=PAGE_TITLE, 
     page_icon=PAGE_ICON, 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
-st.markdown(MODERN_CSS, unsafe_allow_html=True)
+
+load_css()
 
 # === HELPER FUNCTIONS ===
 def open_file_dialog(select_folder: bool = False) -> Optional[str]:
